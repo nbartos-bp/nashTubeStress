@@ -18,7 +18,7 @@
 nashTubeStress.py
  -- steady-state temperature distribution (Gauss-Seidel iteration)
  -- biharmonic thermoelastic stress
- -- tested 09/07/2019 with Python 2.7.15+ and pip packages 
+ -- tested 09/07/2019 with Python 2.7.15+ and pip packages
 
 See also:
  -- Solar Energy 160 (2018) 368-379
@@ -29,8 +29,8 @@ import sys, time, os
 from math import exp, log, sqrt, pi, ceil, floor, asin
 import numpy as np # version 1.15.4
 from numpy import ma
-import weave # version 0.17.0
-from weave import converters
+#import weave # version 0.17.0
+#from weave import converters
 import scipy.optimize as opt # version 1.1.0
 from pint import UnitRegistry # version 0.8.1
 UR_ = UnitRegistry()
@@ -69,7 +69,7 @@ class liquidSodium:
 
     def update (self, T):
         self.T = T
-        T_c = 2503.7 # K            
+        T_c = 2503.7 # K
         rho_c = 219. # kg/m^3
         self.rho = rho_c + 275.32*(1 - self.T/T_c) + \
                    511.58*sqrt(1 - self.T/T_c) # kg/m^3
@@ -123,9 +123,9 @@ class nitrateSalt:
             valprint('Pr', self.Pr)
 
 class Grid:
-    
+
     """ A cylindrical coordinate (theta, r) grid class """
-    
+
     def __init__(self, nr=6, nt=61, rMin=0.5, rMax=0.7,
                  thetaMin=0, thetaMax=np.radians(180)):
         self.nr, self.nt = nr, nt
@@ -156,17 +156,17 @@ class Grid:
         self.tubeFront[self.cosTheta<0] = 0.0
 
 class Solver:
-    
-    """  A Laplacian solver for steady-state conduction in cylinders 
-         -- Gauss-Seidel iteration of T(r, theta) 
+
+    """  A Laplacian solver for steady-state conduction in cylinders
+         -- Gauss-Seidel iteration of T(r, theta)
          -- bi-harmonic thermoelastic stress post-processing """
 
     # Constants:
     sigma = 5.67e-8    # Stefan-Boltzmann
-    
-    def __init__(self, grid, debug=False, it='inline', CG=8.5e5, 
-                 k=20, T_int=723.15, h_int=10e3, U=4.0, R_f=0., A=0.968, 
-                 epsilon=0.87, T_ext=293.15, h_ext=30., P_i=0e5, 
+
+    def __init__(self, grid, debug=False, it='numpy', CG=8.5e5,
+                 k=20, T_int=723.15, h_int=10e3, U=4.0, R_f=0., A=0.968,
+                 epsilon=0.87, T_ext=293.15, h_ext=30., P_i=0e5,
                  T_0=0., alpha=18.5e-6, E=165e9, nu=0.3, n=1,
                  bend=False, GPS=True):
         self.debug = debug
@@ -193,10 +193,10 @@ class Solver:
         self.meshT = np.ones((grid.nt+2, grid.nr), 'd') * T_int
         self.T = self.meshT[1:-1,:] # remove symm for post-processing
 
-    def computeError(self):        
+    def computeError(self):
         """ Computes absolute error using an L2 norm for the solution.
         This requires that self.T and self.old_T must be appropriately
-        setup - only used for numpyStep """        
+        setup - only used for numpyStep """
         v = (self.meshT - self.old_T).flat
         return np.sqrt(np.dot(v,v))
 
@@ -207,12 +207,12 @@ class Solver:
         self.extBC()
         self.intBC()
         # Numpy iteration
-        self.meshT[1:-1,1:-1] = ( 
-            ( self.meshT[1:-1,2:] - self.meshT[1:-1,:-2] ) 
+        self.meshT[1:-1,1:-1] = (
+            ( self.meshT[1:-1,2:] - self.meshT[1:-1,:-2] )
             / self.g.twoDrR +
-            ( self.meshT[1:-1,:-2] + self.meshT[1:-1,2:] ) 
+            ( self.meshT[1:-1,:-2] + self.meshT[1:-1,2:] )
             / self.g.dr2 +
-            ( self.meshT[:-2,1:-1] + self.meshT[2:,1:-1] ) 
+            ( self.meshT[:-2,1:-1] + self.meshT[2:,1:-1] )
             / self.g.dTheta2R2
         ) / self.g.dnr
         # Symmetry boundary conditions
@@ -274,7 +274,7 @@ class Solver:
                return_val = sqrt(err);
                """
         err = weave.inline(code,
-                           ['nr', 'nt', 'T', 'twoDrR', 
+                           ['nr', 'nt', 'T', 'twoDrR',
                             'dr2', 'dTheta2R2', 'dnr'],
                            type_converters=converters.blitz,
                            compiler = 'gcc')
@@ -284,9 +284,9 @@ class Solver:
         self.symmetryBC()
         return err
 
-    def setIterator(self, iterator='numpy'):        
+    def setIterator(self, iterator='numpy'):
         """ Sets the iteration scheme to be used while solving given a
-        string which should be one of ['numpy', 'blitz', 'inline']. """        
+        string which should be one of ['numpy', 'blitz', 'inline']. """
         if iterator == 'numpy':
             self.iterate = self.numpyStep
         elif iterator == 'blitz':
@@ -294,9 +294,9 @@ class Solver:
         elif iterator == 'inline':
             self.iterate = self.inlineStep
         else:
-            self.iterate = self.numpyStep            
-                
-    def solve(self, n_iter=0, eps=1.0e-16):        
+            self.iterate = self.numpyStep
+
+    def solve(self, n_iter=0, eps=1.0e-16):
         """ Solves the equation given:
         - an error precision -- eps
         - a maximum number of iterations -- n_iter """
@@ -316,28 +316,28 @@ class Solver:
 
     ############################ BOUNDARY CONDITIONS ###########################
 
-    def symmetryBC(self):        
-        """ Sets the left and right symmetry BCs """       
+    def symmetryBC(self):
+        """ Sets the left and right symmetry BCs """
         self.meshT[0, 1:-1] = self.meshT[2, 1:-1]
         self.meshT[-1, 1:-1] = self.meshT[-3, 1:-1]
 
     def tubeExtTemp(self):
-        """ fixedValue boundary condition """        
+        """ fixedValue boundary condition """
         self.meshT[:,-1] = self.T_ext
 
     def tubeExtConv(self):
-        """ Convective boundary condition """        
+        """ Convective boundary condition """
         self.meshT[:, -1] = (self.meshT[:,-2] + \
-                             ((self.g.dr * self.h_ext / 
+                             ((self.g.dr * self.h_ext /
                                self.k) * self.T_ext)) \
             / (1 + (self.g.dr * self.h_ext / self.k))
 
-    def tubeExtFlux(self):        
+    def tubeExtFlux(self):
         """ Heat flux boundary condition """
-        self.meshT[:,-1] = ((self.g.dr * self.CG) / 
+        self.meshT[:,-1] = ((self.g.dr * self.CG) /
                             self.k) + self.meshT[:, -2]
 
-    def tubeExtCosFlux(self): 
+    def tubeExtCosFlux(self):
         """ 100% absorbed cosine flux boundary condition """
         self.heatFluxInc = (self.g.tubeFront * \
                             self.CG * self.g.cosTheta)
@@ -345,7 +345,7 @@ class Solver:
         self.meshT[:,-1] = self.meshT[:,-2] + \
                            (heatFluxAbs * self.g.dr / self.k)
 
-    def tubeExtCosFluxRadConv(self): 
+    def tubeExtCosFluxRadConv(self):
         """ Heat flux, re-radiation and convection boundary condition """
         self.heatFluxInc = (self.g.tubeFront * \
                             self.CG * self.g.cosTheta)
@@ -356,25 +356,25 @@ class Solver:
         self.meshT[:,-1] = self.meshT[:,-2] + \
                            (heatFluxAbs * self.g.dr / self.k)
 
-    def tubeExtCosFluxRadConvAdiabaticBack(self): 
+    def tubeExtCosFluxRadConvAdiabaticBack(self):
         """ Heat flux, re-radiation and convection boundary condition """
         self.heatFluxInc = (self.g.tubeFront * \
                             self.CG * self.g.cosTheta)
         heatFluxAbs = self.heatFluxInc * self.A \
                       - (self.g.tubeFront * self.sigma * self.epsilon \
                          * (self.meshT[:,-1]**4 - self.T_ext**4)) \
-                      - (self.h_ext * self.g.tubeFront * 
+                      - (self.h_ext * self.g.tubeFront *
                          (self.meshT[:,-1] - self.T_ext))
         self.meshT[:,-1] = self.meshT[:,-2] + \
                            (heatFluxAbs * self.g.dr / self.k)
 
     def tubeIntTemp(self):
-        """ fixedValue boundary condition """        
+        """ fixedValue boundary condition """
         self.meshT[:,0] = self.T_int
 
-    def tubeIntFlux(self):        
-        """ Heat flux boundary condition """        
-        self.meshT[:,0] = ((self.g.dr * self.CG) / 
+    def tubeIntFlux(self):
+        """ Heat flux boundary condition """
+        self.meshT[:,0] = ((self.g.dr * self.CG) /
                            self.k) + self.meshT[:, 1]
 
     def tubeIntConv(self):
@@ -389,17 +389,17 @@ class Solver:
 
     def stress(self):
         """ The Timoshenko & Goodier approach (dating back to 1937):
-        -- S. Timoshenko and J. N. Goodier. Theory of Elasticity. 
+        -- S. Timoshenko and J. N. Goodier. Theory of Elasticity.
            p432, 1951.
-        -- J. N. Goodier, Thermal Stresses and Deformation, 
-           J. Applied Mechanics, Trans ASME, vol. 24(3), 
+        -- J. N. Goodier, Thermal Stresses and Deformation,
+           J. Applied Mechanics, Trans ASME, vol. 24(3),
            p467-474, 1957. """
         # smaller names for equations below:
         a, b = self.g.a, self.g.b
         P_i, alpha, E, nu = self.P_i, self.alpha, self.E, self.nu
         # create a local 'harmonic' cylinder of T, theta and r:
         T = np.insert(self.T, 0, self.T[1:,:][::-1], axis=0)
-        theta = np.linspace(np.radians(-180), np.radians(180), 
+        theta = np.linspace(np.radians(-180), np.radians(180),
                             (self.g.nt*2)-1)
         r = np.linspace(a, b, self.g.nr)
         meshR, meshTheta = np.meshgrid(r, theta)
@@ -415,14 +415,14 @@ class Solver:
         # outside:
         popt2, pcov2 = opt.curve_fit(fourierTheta, theta, T[:,-1], p0)
         Tbar_o = popt2[0]; BPP = popt2[1]; DPP = popt2[2];
-        kappa_theta = (( (((BP * b) - (BPP * a)) / (b2 + a2)) 
+        kappa_theta = (( (((BP * b) - (BPP * a)) / (b2 + a2))
                          * np.cos(meshTheta)) + \
-                       ( (((DP * b) - (DPP * a)) / (b2 + a2)) 
+                       ( (((DP * b) - (DPP * a)) / (b2 + a2))
                          * np.sin(meshTheta))) * \
                          (meshR * a * b) / (b2 - a2)
-        kappa_tau = (( (((BP * b) - (BPP * a)) / (b2 + a2)) 
+        kappa_tau = (( (((BP * b) - (BPP * a)) / (b2 + a2))
                        * np.sin(meshTheta)) - \
-                     ( (((DP * b) - (DPP * a)) / (b2 + a2)) 
+                     ( (((DP * b) - (DPP * a)) / (b2 + a2))
                        * np.cos(meshTheta))) * \
                        (meshR * a * b) / (b2 - a2)
         if self.bend:
@@ -534,7 +534,7 @@ def plotTemperatureAnnotate(theta, r, T, TMin, TMax, filename):
     plt.close(fig)
 
 def plotStress(theta, r, sigma, sigmaMin, sigmaMax, filename):
-    fig = plt.figure(figsize=(3.5, 3.5))    
+    fig = plt.figure(figsize=(3.5, 3.5))
     fig.subplots_adjust(left=-1)
     fig.subplots_adjust(right=1)
     fig.subplots_adjust(bottom=0.1)
@@ -565,7 +565,7 @@ def plotStress(theta, r, sigma, sigmaMin, sigmaMax, filename):
     plt.close(fig)
 
 def plotStressAnnotate(theta, r, sigma, sigmaMin, sigmaMax, annSide, filename):
-    annSide = -70 if annSide=='left' else 40 
+    annSide = -70 if annSide=='left' else 40
     fig = plt.figure(figsize=(3, 3.25))
     fig.subplots_adjust(left=-1)
     fig.subplots_adjust(right=1)
@@ -601,17 +601,17 @@ def plotStressAnnotate(theta, r, sigma, sigmaMin, sigmaMax, annSide, filename):
     fig.savefig(filename, transparent=True)
     plt.close(fig)
 
-def plotComponentStress(r, sigmaR, sigmaTheta, sigmaZ, 
+def plotComponentStress(r, sigmaR, sigmaTheta, sigmaZ,
                         sigmaEq, fea, filename, i, loc):
     fig = plt.figure(figsize=(3.5, 3.5))
     ax = fig.add_subplot(111)
-    ax.plot(r[i,:]*1e3, sigmaR[i,:]*1e-6, #'b-', 
+    ax.plot(r[i,:]*1e3, sigmaR[i,:]*1e-6, #'b-',
             label='$\sigma_r$')
-    ax.plot(r[i,:]*1e3, sigmaTheta[i,:]*1e-6, #'c-', 
+    ax.plot(r[i,:]*1e3, sigmaTheta[i,:]*1e-6, #'c-',
             label=r'$\sigma_\theta$')
-    ax.plot(r[i,:]*1e3, sigmaZ[i,:]*1e-6, #'m-', 
+    ax.plot(r[i,:]*1e3, sigmaZ[i,:]*1e-6, #'m-',
             label='$\sigma_z$')
-    ax.plot(r[i,:]*1e3, sigmaEq[i,:]*1e-6, #'k-', 
+    ax.plot(r[i,:]*1e3, sigmaEq[i,:]*1e-6, #'k-',
             label='$\sigma_\mathrm{Eq}$')
     ax.legend(loc=loc)
     ax.set_xlabel('$r$ (mm)')
@@ -718,21 +718,21 @@ def plotNACA(r, sigma, fea, i, filename, loc, ylabel):
     fig.tight_layout()
     fig.savefig(filename, transparent=True)
     plt.close(fig)
-    
+
 def plotASTER(r, sigma, fea, i, filename, loc, ylabel):
     fig = plt.figure(figsize=(3.5, 3.5))
     ax = fig.add_subplot(111)
     a = r[0,0]
-    ax.plot(r[0,:]*1e3, sigma[0,:]*1e-6, '-', color='C0', 
+    ax.plot(r[0,:]*1e3, sigma[0,:]*1e-6, '-', color='C0',
             label=r'$\theta=0^\circ$')
     ax.plot((a+fea[0][:,0])*1e3, fea[0][:,i], 'o', color='C0', markevery=1)
-    ax.plot(r[0,:]*1e3, sigma[20,:]*1e-6, '-', color='C1', 
+    ax.plot(r[0,:]*1e3, sigma[20,:]*1e-6, '-', color='C1',
             label=r'$\theta=60^\circ$')
     ax.plot((a+fea[1][:,0])*1e3, fea[1][:,i], '^', color='C1', markevery=1)
-    ax.plot(r[0,:]*1e3, sigma[40,:]*1e-6, '-', color='C2', 
+    ax.plot(r[0,:]*1e3, sigma[40,:]*1e-6, '-', color='C2',
             label=r'$\theta=120^\circ$')
     ax.plot((a+fea[2][:,0])*1e3, fea[2][:,i], 'v', color='C2', markevery=1)
-    ax.plot(r[0,:]*1e3, sigma[60,:]*1e-6, '-', color='C3', 
+    ax.plot(r[0,:]*1e3, sigma[60,:]*1e-6, '-', color='C3',
             label=r'$\theta=180^\circ$')
     ax.plot((a+fea[3][:,0])*1e3, fea[3][:,i], 's', color='C3', markevery=1)
     ax.set_xlabel('$r$ (mm)')
@@ -759,7 +759,7 @@ def plotASTER(r, sigma, fea, i, filename, loc, ylabel):
 def fourierTheta(theta, a0, *c):
     """ Timoshenko & Goodier equation """
     ret = a0 + np.zeros(len(theta))
-    for i, n in zip(range(0,len(c),2), range(1,(len(c)/2)+1)):
+    for i, n in zip(range(0,len(c),2), range(1,int((len(c)/2))+1)):
         ret += (c[i] * np.cos(n * theta)) + (c[i+1] * np.sin(n * theta))
     return ret
 
@@ -810,7 +810,7 @@ def HTC(debug, thermo, a, b, k, correlation, mode, arg):
         U = mdot / (A_d_i * thermo.rho)
         hcr = mdot * thermo.Cp
     elif mode=='heatCapRate':
-        hcr = arg # 
+        hcr = arg #
         mdot = hcr / thermo.Cp
         U = mdot / (A_d_i * thermo.rho)
     else: sys.exit('Mode: {} not recognised'.format(mode))
@@ -850,7 +850,7 @@ def HTC(debug, thermo, a, b, k, correlation, mode, arg):
     return [h, DP_f]
 
 def findFlux(flux, s, f, i, point):
-    """ 
+    """
     Helper for finding optimum flux for certain stress condition
     """
     s.CG = flux
@@ -880,7 +880,7 @@ def findFlux(flux, s, f, i, point):
 
 def Timoshenko1951():
     """
-    Timoshenko, S. and Goodier, J. N., 1951. Theory of Elasticity. 
+    Timoshenko, S. and Goodier, J. N., 1951. Theory of Elasticity.
     McGraw-Hill Book Company, Inc., 2nd edn. 1st ed. 1934.
     """
     headerprint(' Case 135 p412 Timoshenko & Goodier, 1951 ')
@@ -893,28 +893,28 @@ def Timoshenko1951():
     valprint('E', E*1e-9, 'GPa')
     alpha = 1e-5
     valprint('alpha', alpha*1e6, 'x1e6 K^-1')
-    
+
     # Create instance of Grid and Solver to use stress post-processor:
     GPS = True # True: generalised plane strain (default); False: simple plane strain.
     g = Grid(nr=nr, nt=nt, rMin=a, rMax=b)
-    s = Solver(g, debug=True, alpha=alpha, 
+    s = Solver(g, debug=True, alpha=alpha,
                E=E, nu=0.3, n=1, GPS=GPS)
     s.T = 100 * ((np.log(g.r / a) / np.log(b / a)))
     s.postProcessing()
 
     # plotStress(g.theta, g.r, s.sigmaR,
-    #            s.sigmaR.min(), s.sigmaR.max(), 
+    #            s.sigmaR.min(), s.sigmaR.max(),
     #            'Timoshenko_sigmaR.pdf')
     # plotStress(g.theta, g.r, s.sigmaTheta,
-    #            s.sigmaTheta.min(), s.sigmaTheta.max(), 
+    #            s.sigmaTheta.min(), s.sigmaTheta.max(),
     #            'Timoshenko_sigmaTheta.pdf')
-    # plotStress(g.theta, g.r, s.sigmaRTheta, 
-    #            s.sigmaRTheta.min(), s.sigmaRTheta.max(), 
+    # plotStress(g.theta, g.r, s.sigmaRTheta,
+    #            s.sigmaRTheta.min(), s.sigmaRTheta.max(),
     #            'Timoshenko_sigmaRTheta.pdf')
-    # plotStress(g.theta, g.r, s.sigmaZ, 
-    #            s.sigmaZ.min(), s.sigmaZ.max(), 
+    # plotStress(g.theta, g.r, s.sigmaZ,
+    #            s.sigmaZ.min(), s.sigmaZ.max(),
     #            'Timoshenko_sigmaZ.pdf')
-    # plotStress(g.theta, g.r, s.sigmaEq, 
+    # plotStress(g.theta, g.r, s.sigmaEq,
     #            s.sigmaEq.min(), s.sigmaEq.max(),
     #            'Timoshenko_sigmaEq.pdf')
 
@@ -936,7 +936,7 @@ def Holms1952():
     """
     Holms, A.G., 1952. A biharmonic relaxation method for calculating thermal
     stress in cooled irregular cylinders. Technical Report NACA-TR-1059.
-    Lewis Flight Propulsion Lab. Cleveland. 
+    Lewis Flight Propulsion Lab. Cleveland.
     URL: https://ntrs.nasa.gov/search.jsp?R=19930092105
     """
     headerprint(' Holms (1952), NACA-TR-1059 ')
@@ -952,10 +952,10 @@ def Holms1952():
     valprint('E', E*1e-9, 'GPa')
     alpha = Q_(8e-6, 'degF^-1').to('K^-1').magnitude
     valprint('alpha', alpha*1e6, 'x1e6 K^-1')
-    
+
     # Create instance of Grid and Solver to use stress post-processor:
     g = Grid(nr=nr, nt=nt, rMin=a, rMax=b)
-    s = Solver(g, debug=True, alpha=alpha, 
+    s = Solver(g, debug=True, alpha=alpha,
                E=E, nu=0.3, n=1)
     s.T = (((c1-c0) * b) / (b**2 - a**2)) * \
           ((g.r**2 - a**2) / g.r) * np.cos(g.theta) + \
@@ -963,18 +963,18 @@ def Holms1952():
     s.postProcessing()
 
     # plotStress(g.theta, g.r, s.sigmaR,
-    #            s.sigmaR.min(), s.sigmaR.max(), 
+    #            s.sigmaR.min(), s.sigmaR.max(),
     #            'NACA-TR-1059_sigmaR.pdf')
     # plotStress(g.theta, g.r, s.sigmaTheta,
-    #            s.sigmaTheta.min(), s.sigmaTheta.max(), 
+    #            s.sigmaTheta.min(), s.sigmaTheta.max(),
     #            'NACA-TR-1059_sigmaTheta.pdf')
-    # plotStress(g.theta, g.r, s.sigmaRTheta, 
-    #            s.sigmaRTheta.min(), s.sigmaRTheta.max(), 
+    # plotStress(g.theta, g.r, s.sigmaRTheta,
+    #            s.sigmaRTheta.min(), s.sigmaRTheta.max(),
     #            'NACA-TR-1059_sigmaRTheta.pdf')
-    # plotStress(g.theta, g.r, s.sigmaZ, 
-    #            s.sigmaZ.min(), s.sigmaZ.max(), 
+    # plotStress(g.theta, g.r, s.sigmaZ,
+    #            s.sigmaZ.min(), s.sigmaZ.max(),
     #            'NACA-TR-1059_sigmaZ.pdf')
-    # plotStress(g.theta, g.r, s.sigmaEq, 
+    # plotStress(g.theta, g.r, s.sigmaEq,
     #            s.sigmaEq.min(), s.sigmaEq.max(),
     #            'NACA-TR-1059_sigmaEq.pdf')
 
@@ -1008,11 +1008,11 @@ def Holms1952():
              'best', r'\textsc{equivalent stress}, $\sigma_\mathrm{eq}$')
 
 def SE6413():
-    """ 
+    """
     Reproduction of results from Solar Energy 160 (2018) 368-379
     https://doi.org/10.1016/j.solener.2017.12.003
     """
-    
+
     headerprint(' NPS Sch. 5S 1" S31609 at 450degC ')
 
     nr=12; nt=91
@@ -1024,7 +1024,7 @@ def SE6413():
 
     """ Create instance of LaplaceSolver: """
     s = Solver(g, debug=True, CG=0.85e6, k=20, T_int=723.15, R_f=0,
-               A=0.968, epsilon=0.87, T_ext=293.15, h_ext=20., 
+               A=0.968, epsilon=0.87, T_ext=293.15, h_ext=20.,
                P_i=0e5, alpha=18.5e-6, E=165e9, nu=0.31, n=1,
                bend=False)
 
@@ -1065,18 +1065,18 @@ def SE6413():
                             s.T.min(), s.T.max(),
                             'S31609_nitrateSalt_T.pdf')
     plotStress(g.theta, g.r, s.sigmaR,
-               s.sigmaR.min(), s.sigmaR.max(), 
+               s.sigmaR.min(), s.sigmaR.max(),
                'S31609_nitrateSalt_sigmaR.pdf')
     plotStress(g.theta, g.r, s.sigmaTheta,
-               s.sigmaTheta.min(), s.sigmaTheta.max(), 
+               s.sigmaTheta.min(), s.sigmaTheta.max(),
                'S31609_nitrateSalt_sigmaTheta.pdf')
-    plotStress(g.theta, g.r, s.sigmaRTheta, 
-               s.sigmaRTheta.min(), s.sigmaRTheta.max(), 
+    plotStress(g.theta, g.r, s.sigmaRTheta,
+               s.sigmaRTheta.min(), s.sigmaRTheta.max(),
                'S31609_nitrateSalt_sigmaRTheta.pdf')
-    plotStress(g.theta, g.r, s.sigmaZ, 
-               s.sigmaZ.min(), s.sigmaZ.max(), 
+    plotStress(g.theta, g.r, s.sigmaZ,
+               s.sigmaZ.min(), s.sigmaZ.max(),
                'S31609_nitrateSalt_sigmaZ.pdf')
-    plotStressAnnotate(g.theta, g.r, s.sigmaEq, 
+    plotStressAnnotate(g.theta, g.r, s.sigmaEq,
                        s.sigmaEq.min(), s.sigmaEq.max(),
                        'right', 'S31609_nitrateSalt_sigmaEq.pdf')
 
@@ -1092,18 +1092,18 @@ def SE6413():
                             s.T.min(), s.T.max(),
                             'S31609_liquidSodium_T.pdf')
     plotStress(g.theta, g.r, s.sigmaR,
-               s.sigmaR.min(), s.sigmaR.max(), 
+               s.sigmaR.min(), s.sigmaR.max(),
                'S31609_liquidSodium_sigmaR.pdf')
     plotStress(g.theta, g.r, s.sigmaTheta,
-               s.sigmaTheta.min(), s.sigmaTheta.max(), 
+               s.sigmaTheta.min(), s.sigmaTheta.max(),
                'S31609_liquidSodium_sigmaTheta.pdf')
-    plotStress(g.theta, g.r, s.sigmaRTheta, 
-               s.sigmaRTheta.min(), s.sigmaRTheta.max(), 
+    plotStress(g.theta, g.r, s.sigmaRTheta,
+               s.sigmaRTheta.min(), s.sigmaRTheta.max(),
                'S31609_liquidSodium_sigmaRTheta.pdf')
-    plotStress(g.theta, g.r, s.sigmaZ, 
-               s.sigmaZ.min(), s.sigmaZ.max(), 
+    plotStress(g.theta, g.r, s.sigmaZ,
+               s.sigmaZ.min(), s.sigmaZ.max(),
                'S31609_liquidSodium_sigmaZ.pdf')
-    plotStressAnnotate(g.theta, g.r, s.sigmaEq, 
+    plotStressAnnotate(g.theta, g.r, s.sigmaEq,
                        s.sigmaEq.min(), s.sigmaEq.max(),
                        'right', 'S31609_liquidSodium_sigmaEq.pdf')
 
@@ -1145,11 +1145,11 @@ def ASTRI2():
     #h_int, dP = HTC(True, sodium, a, b, k, 'Notter', 'mdot', mdot)
     h_int, dP = HTC(True, sodium, a, b, k, 'Chen', 'mdot', mdot)
     m_s = pi*a**2*sodium.rho
-    
+
     ## Mechanical constants
     valprint('dead-weight', m_t+m_s, 'kg/m') # dead weight of tube + fluid
     P_i = 6e5 # Pa
-    valprint('P_i', P_i*1e-5, 'bar (x1e-5 Pa)')    
+    valprint('P_i', P_i*1e-5, 'bar (x1e-5 Pa)')
 
     """ Create instance of Grid: """
     nr = 17; nt = 61
@@ -1189,7 +1189,7 @@ def ASTRI2():
 
     headerprint('Generalised plane strain (thermal only)', ' ')
     sN06625.P_i = 0e5
-    
+
     """ External BC: """
     #sN06625.extBC = sN06625.tubeExtTemp
     sN06625.extBC = sN06625.tubeExtCosFlux
@@ -1208,18 +1208,18 @@ def ASTRI2():
     valprint('Time', time.clock() - t, 'sec')
 
     plotStress(gN06625.theta, gN06625.r, sN06625.sigmaR,
-               sN06625.sigmaR.min(), sN06625.sigmaR.max(), 
+               sN06625.sigmaR.min(), sN06625.sigmaR.max(),
                'N06625_GPS_sigmaR_TH.pdf')
     plotStress(gN06625.theta, gN06625.r, sN06625.sigmaTheta,
-               sN06625.sigmaTheta.min(), sN06625.sigmaTheta.max(), 
+               sN06625.sigmaTheta.min(), sN06625.sigmaTheta.max(),
                'N06625_GPS_sigmaTheta_TH.pdf')
-    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaRTheta, 
-               sN06625.sigmaRTheta.min(), sN06625.sigmaRTheta.max(), 
+    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaRTheta,
+               sN06625.sigmaRTheta.min(), sN06625.sigmaRTheta.max(),
                'N06625_GPS_sigmaRTheta_TH.pdf')
-    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaZ, 
-               sN06625.sigmaZ.min(), sN06625.sigmaZ.max(), 
+    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaZ,
+               sN06625.sigmaZ.min(), sN06625.sigmaZ.max(),
                'N06625_GPS_sigmaZ_TH.pdf')
-    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaEq, 
+    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaEq,
                sN06625.sigmaEq.min(), sN06625.sigmaEq.max(),
                'N06625_GPS_sigmaEq_TH.pdf')
 
@@ -1252,18 +1252,18 @@ def ASTRI2():
     sN06625.postProcessing()
 
     plotStress(gN06625.theta, gN06625.r, sN06625.sigmaR,
-               sN06625.sigmaR.min(), sN06625.sigmaR.max(), 
+               sN06625.sigmaR.min(), sN06625.sigmaR.max(),
                'N06625_GPS-AB_sigmaR_TH.pdf')
     plotStress(gN06625.theta, gN06625.r, sN06625.sigmaTheta,
-               sN06625.sigmaTheta.min(), sN06625.sigmaTheta.max(), 
+               sN06625.sigmaTheta.min(), sN06625.sigmaTheta.max(),
                'N06625_GPS-AB_sigmaTheta_TH.pdf')
-    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaRTheta, 
-               sN06625.sigmaRTheta.min(), sN06625.sigmaRTheta.max(), 
+    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaRTheta,
+               sN06625.sigmaRTheta.min(), sN06625.sigmaRTheta.max(),
                'N06625_GPS-AB_sigmaRTheta_TH.pdf')
-    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaZ, 
-               sN06625.sigmaZ.min(), sN06625.sigmaZ.max(), 
+    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaZ,
+               sN06625.sigmaZ.min(), sN06625.sigmaZ.max(),
                'N06625_GPS-AB_sigmaZ_TH.pdf')
-    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaEq, 
+    plotStress(gN06625.theta, gN06625.r, sN06625.sigmaEq,
                sN06625.sigmaEq.min(), sN06625.sigmaEq.max(),
                'N06625_GPS-AB_sigmaEq_TH.pdf')
 
@@ -1280,7 +1280,7 @@ def ASTRI2():
     T_met = np.zeros([len(T_int), nfv])
     peakFlux = np.zeros([len(T_int), nfv])
     t = time.clock()
-    for i in xrange(len(T_int)):
+    for i in range(len(T_int)):
         sN06625.T_int = T_int[i]
         sodium.update(T_int[i])
         sN06625.h_int, dP = HTC(False, sodium, a, b, k, 'Chen', 'mdot', mdot)
@@ -1288,12 +1288,12 @@ def ASTRI2():
             peakFlux[i, j] = opt.newton(
                 findFlux, 1e5,
                 args=(sN06625, fv, j+1, 'outside'),
-                maxiter=100, tol=1e-2
+                maxiter=1000, tol=1e-2
             )
             T_met[i, j] = np.max(sN06625.T)
     valprint('Time taken', time.clock() - t, 'sec')
-    
-    fig = plt.figure(figsize=(3.5, 3.5))    
+
+    fig = plt.figure(figsize=(3.5, 3.5))
     ax = fig.add_subplot(111)
     ax.plot(T_int-273.15,peakFlux[:,0]*1e-6, label=r'$f$ \textsc{in} \SI{100}{\hour}')
     ax.plot(T_int-273.15,peakFlux[:,1]*1e-6, label=r'$f$ \textsc{in} \SI{1000}{\hour}')
@@ -1357,7 +1357,7 @@ def ASTRI2():
     ## Mechanical constants
     valprint('dead-weight', m_t+m_s, 'kg/m') # dead weight of tube + fluid
     P_i = 0e5 # Pa
-    valprint('P_i', P_i*1e-5, 'bar (x1e-5 Pa)')    
+    valprint('P_i', P_i*1e-5, 'bar (x1e-5 Pa)')
 
     """ Create instance of Grid: """
     nr = 17; nt = 61
@@ -1387,7 +1387,7 @@ def ASTRI2():
     T_met = np.zeros([len(T_int), nfv])
     peakFlux = np.zeros([len(T_int), nfv])
     t = time.clock()
-    for i in xrange(len(T_int)):
+    for i in range(len(T_int)):
         sN06230.T_int = T_int[i]
         sodium.update(T_int[i])
         sN06230.h_int, dP = HTC(False, sodium, a, b, k, 'Chen', 'mdot', mdot)
@@ -1399,8 +1399,8 @@ def ASTRI2():
             )
             T_met[i, j] = np.max(sN06230.T)
     valprint('Time taken', time.clock() - t, 'sec')
-    
-    fig = plt.figure(figsize=(3.5, 3.5))    
+
+    fig = plt.figure(figsize=(3.5, 3.5))
     ax = fig.add_subplot(111)
     ax.plot(T_int-273.15,peakFlux[:,0]*1e-6, label=r'$f$ \textsc{in} \SI{100}{\hour}')
     ax.plot(T_int-273.15,peakFlux[:,1]*1e-6, label=r'$f$ \textsc{in} \SI{1000}{\hour}')
