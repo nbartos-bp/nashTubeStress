@@ -168,7 +168,8 @@ class Solver:
                  k=20, T_int=723.15, h_int=10e3, U=4.0, R_f=0., A=0.968,
                  epsilon=0.87, T_ext=293.15, h_ext=30., P_i=0e5,
                  T_0=0., alpha=18.5e-6, E=165e9, nu=0.3, n=1,
-                 bend=False, GPS=True):
+                 bend=False, GPS=True, wind_speed=7.5, wind_dir=90., coating='CoteRill750',
+                 view_factor=1.0, internal_flux=15.23e3):
         self.debug = debug
         # Class constants and variables (default UNS S31600 @ 450degC):
         self.g = grid
@@ -191,7 +192,12 @@ class Solver:
         self.bend = bend        # switch to allow tube bending
         self.GPS = GPS          # switch to turn off generalised plane strain
         self.meshT = np.ones((grid.nt+2, grid.nr), 'd') * T_int
-        self.T = self.meshT[1:-1,:] # remove symm for post-processing
+        self.T = self.meshT[1:-1,:]  # remove symm for post-processing
+        self.wind_speed = wind_speed
+        self.wind_dir = wind_dir
+        self.coating = coating
+        self.view_factor = view_factor  # Radiative view factor between tube and environment
+        self.int_flux = internal_flux  # internal flux from hotbox (W/m2)
 
     def computeError(self):
         """ Computes absolute error using an L2 norm for the solution.
@@ -220,69 +226,75 @@ class Solver:
         return self.computeError()
 
     def blitzStep(self):
-        """ Gauss-Seidel iteration using numpy expression
-        that has been blitzed using weave """
-        self.old_T = self.meshT.copy()
-        # "Driving" BCs (heat flux, radiation and convection)
-        self.extBC()
-        self.intBC()
-        # Prepare constants and arrays for blitz
-        T = self.meshT
-        twoDrR = self.g.twoDrR
-        dr2 = self.g.dr2
-        dTheta2R2 = self.g.dTheta2R2
-        dnr = self.g.dnr
-        expr = "T[1:-1,1:-1] = ("\
-            "( T[1:-1,2:] - T[1:-1,:-2] ) / twoDrR +"\
-            "( T[1:-1,:-2] + T[1:-1,2:] ) / dr2 +"\
-            "( T[:-2,1:-1] + T[2:,1:-1] ) / dTheta2R2"\
-            ") / dnr"
-        weave.blitz(expr, check_size=0)
-        # Transfer result back to mesh/grid
-        self.meshT = T
-        # Symmetry boundary conditions
-        self.symmetryBC()
-        return self.computeError()
+        pass
+# =============================================================================
+#         """ Gauss-Seidel iteration using numpy expression
+#         that has been blitzed using weave """
+#         self.old_T = self.meshT.copy()
+#         # "Driving" BCs (heat flux, radiation and convection)
+#         self.extBC()
+#         self.intBC()
+#         # Prepare constants and arrays for blitz
+#         T = self.meshT
+#         twoDrR = self.g.twoDrR
+#         dr2 = self.g.dr2
+#         dTheta2R2 = self.g.dTheta2R2
+#         dnr = self.g.dnr
+#         expr = "T[1:-1,1:-1] = ("\
+#             "( T[1:-1,2:] - T[1:-1,:-2] ) / twoDrR +"\
+#             "( T[1:-1,:-2] + T[1:-1,2:] ) / dr2 +"\
+#             "( T[:-2,1:-1] + T[2:,1:-1] ) / dTheta2R2"\
+#             ") / dnr"
+#         weave.blitz(expr, check_size=0)
+#         # Transfer result back to mesh/grid
+#         self.meshT = T
+#         # Symmetry boundary conditions
+#         self.symmetryBC()
+#         return self.computeError()
+# =============================================================================
 
     def inlineStep(self):
-        """ Gauss-Seidel iteration using an inline C code """
-        # "Driving" BCs (heat flux, radiation and convection)
-        self.extBC()
-        self.intBC()
-        # Prepare constants and arrays for blitz
-        T = self.meshT
-        nt, nr = self.meshT.shape
-        twoDrR = self.g.twoDrR
-        dr2 = self.g.dr2
-        dTheta2R2 = self.g.dTheta2R2
-        dnr = self.g.dnr
-        code = """
-               #line 000 "nashTubeStress.py"
-               double tmp, err, diff;
-               err = 0.0;
-               for (int i=1; i<nt-1; ++i) {
-                   for (int j=1; j<nr-1; ++j) {
-                       tmp = T(i,j);
-                       T(i,j) = ((T(i,j+1) - T(i,j-1))/twoDrR(i-1,j-1) +
-                                 (T(i,j-1) + T(i,j+1))/dr2 +
-                                 (T(i-1,j) + T(i+1,j))/dTheta2R2(i-1,j-1)
-                                ) / dnr(i-1,j-1);
-                       diff = T(i,j) - tmp;
-                       err += diff*diff;
-                   }
-               }
-               return_val = sqrt(err);
-               """
-        err = weave.inline(code,
-                           ['nr', 'nt', 'T', 'twoDrR',
-                            'dr2', 'dTheta2R2', 'dnr'],
-                           type_converters=converters.blitz,
-                           compiler = 'gcc')
-        # Transfer result back to mesh/grid
-        self.meshT = T
-        # Symmetry boundary conditions
-        self.symmetryBC()
-        return err
+        pass
+# =============================================================================
+#         """ Gauss-Seidel iteration using an inline C code """
+#         # "Driving" BCs (heat flux, radiation and convection)
+#         self.extBC()
+#         self.intBC()
+#         # Prepare constants and arrays for blitz
+#         T = self.meshT
+#         nt, nr = self.meshT.shape
+#         twoDrR = self.g.twoDrR
+#         dr2 = self.g.dr2
+#         dTheta2R2 = self.g.dTheta2R2
+#         dnr = self.g.dnr
+#         code = """
+#                #line 000 "nashTubeStress.py"
+#                double tmp, err, diff;
+#                err = 0.0;
+#                for (int i=1; i<nt-1; ++i) {
+#                    for (int j=1; j<nr-1; ++j) {
+#                        tmp = T(i,j);
+#                        T(i,j) = ((T(i,j+1) - T(i,j-1))/twoDrR(i-1,j-1) +
+#                                  (T(i,j-1) + T(i,j+1))/dr2 +
+#                                  (T(i-1,j) + T(i+1,j))/dTheta2R2(i-1,j-1)
+#                                 ) / dnr(i-1,j-1);
+#                        diff = T(i,j) - tmp;
+#                        err += diff*diff;
+#                    }
+#                }
+#                return_val = sqrt(err);
+#                """
+#         err = weave.inline(code,
+#                            ['nr', 'nt', 'T', 'twoDrR',
+#                             'dr2', 'dTheta2R2', 'dnr'],
+#                            type_converters=converters.blitz,
+#                            compiler = 'gcc')
+#         # Transfer result back to mesh/grid
+#         self.meshT = T
+#         # Symmetry boundary conditions
+#         self.symmetryBC()
+#         return err
+# =============================================================================
 
     def setIterator(self, iterator='numpy'):
         """ Sets the iteration scheme to be used while solving given a
@@ -368,7 +380,144 @@ class Solver:
         self.meshT[:,-1] = self.meshT[:,-2] + \
                            (heatFluxAbs * self.g.dr / self.k)
 
-    def tubeIntTemp(self):
+
+    def extHTC(self, temp, wind_speed=7.5, wind_dir=90):
+        """
+        external heat transfer coefficients due to convection based on Vast Solar receiver geometry
+        as of 26/04/2020. Includes a cowling and roof. These linear correlations based on external
+        CFD parametric study conducted by Politecnico di Torino.
+
+        wind_speed in m/s
+        wind_dir in degree from front_on to receiver
+        temp (external surface temperature) in degrees Kelvin
+        """
+
+        if wind_speed == 0:
+            return 0.000884468*temp + 3.024050054
+
+        elif wind_speed == 7.5:
+            if wind_dir == 0:
+                return 0.000298186*temp + 4.147614501
+            elif wind_dir == 90:
+                return -0.002313861*temp + 9.89913916
+            elif wind_dir == 180:
+                return -0.003201793*temp + 11.88847284
+            else:
+                raise ValueError("Error: incorrect wind_dir value entered")
+
+        elif wind_speed == 20.0:
+            if wind_dir == 0:
+                return -0.002535205*temp + 8.908062072
+            elif wind_dir == 90:
+                return -0.008124657*temp + 25.72204594
+            elif wind_dir == 180:
+                return -0.005727515*temp + 25.04489471
+            else:
+                raise ValueError("Error: incorrect wind_dir value entered")
+
+        # TODO complete other angles
+        else:
+            raise ValueError("Error: incorrect wind_speed value entered")
+
+    def extVariableEmissivity(self, temp):
+        temp = temp - 273.15  # From Kelvin to Celcius
+        if self.coating == 'Pyromark':
+            '''C. Ho et al., Journal of Solar Energy Engineering 136 (2014)'''
+            epsilon = -3.e-13*temp**4 + 9.0e-10*temp**3 - 1.0E-6*temp**2 + 0.0006*temp + 0.7441
+            return epsilon
+        elif self.coating == 'CoteRill750':
+            epsilon = -1.5716e-10*temp**3 + 3.1795e-7*temp**2 - 0.0001833*temp + 0.946911
+            return epsilon
+        else:
+            raise ValueError("Error: incorrect coating entered")
+
+    def extTubeHalfCosFluxVarRadVarConvAdiabatcBack(self):
+        """ Heat flux, re-radiation as a function of temperature, convection as a function of
+        temperature boundary condition"""
+        self.phi_inc = (self.g.halfTube *
+                        self.CG * self.g.cosTheta)
+        h_ext = self.g.halfTube * self.extHTC(self.meshT[:, -1], self.wind_speed, self.wind_dir)
+
+        if self.epsilon == 'variable':
+            epsilon = self.extVariableEmissivity(self.meshT[:, -1])
+        else:
+            Warning('Variable emissivity boundary condition selected but constant epsilon given.'
+                    'Using constant value')
+            epsilon = self.epsilon
+
+        phi_t = self.phi_inc * self.A \
+                - (self.g.halfTube * self.view_factor * self.sigma * epsilon \
+                         * (self.meshT[:, -1]**4 - self.T_ext**4)) \
+                      - (h_ext * self.g.halfTube *
+                         (self.meshT[:, -1] - self.T_ext))
+        self.meshT[:, -1] = self.meshT[:, -2] + \
+                               (phi_t * self.g.dr / self.k)
+
+    def naturalConvectionSiebers(self):
+        ''' Calculates the natural convection coefficient Properties Calculated at T_ext'''
+
+        # Air Properties
+        density = 358.517*self.T_ext**-1.00212
+        volume_exp_coeff = 1.00212/self.T_ext
+        conductivity = -1.3707e-8*self.T_ext**2+7.616e-5*self.T_ext+4.5968e-3
+        kinematic_viscosity = (-8.3123e-12*self.T_ext**2+4.4156e-8*self.T_ext+6.2299e-6)/density
+
+        internal_wall_av_T = self.meshT[self.g.halfTube == 0.0, -1].mean()
+
+        h_int = conductivity * 0.098 * (9.81*volume_exp_coeff*(internal_wall_av_T - self.T_ext) /
+                                        kinematic_viscosity**2)**(1./3.)
+        return h_int
+
+    def extTubeHalfCosFluxVarRadVarConvNatConvBack(self):
+        """ Heat flux, re-radiation as a function of temperature, convection as a function of
+        temperature boundary condition"""
+        self.phi_inc = (self.g.halfTube *
+                        self.CG * self.g.cosTheta)
+        h_ext = self.g.halfTube * self.extHTC(self.meshT[:, -1], self.wind_speed, self.wind_dir)
+        h_int = self.naturalConvectionSiebers()
+
+        if self.epsilon == 'variable':
+            epsilon = self.extVariableEmissivity(self.meshT[:, -1])
+        else:
+            Warning('Variable emissivity boundary condition selected but constant epsilon given.'
+                    'Using constant value')
+            epsilon = self.epsilon
+
+        phi_t = self.phi_inc * self.A \
+                      - (self.g.halfTube * self.view_factor * self.sigma * epsilon \
+                         * (self.meshT[:, -1]**4 - self.T_ext**4)) \
+                      - (h_ext * self.g.halfTube *
+                         (self.meshT[:, -1] - self.T_ext)) \
+                      - (h_int * (1. - self.g.halfTube) *
+                         (self.meshT[:, -1] - self.T_ext))
+        self.meshT[:, -1] = self.meshT[:, -2] + \
+                           (phi_t * self.g.dr / self.k)
+
+    def extTubeHalfCosFluxVarRadVarConvReflFluxBack(self):
+        """ Heat flux, re-radiation as a function of temperature, convection as a function of
+        temperature boundary condition, rearside flux due to hotbox"""
+        self.phi_inc = (self.g.halfTube *
+                        self.CG * self.g.cosTheta)
+        h_ext = self.g.halfTube * self.extHTC(self.meshT[:, -1], self.wind_speed, self.wind_dir)
+
+        if self.epsilon == 'variable':
+            epsilon = self.extVariableEmissivity(self.meshT[:, -1])
+        else:
+            Warning('Variable emissivity boundary condition selected but constant epsilon given.'
+                    'Using constant value')
+            epsilon = self.epsilon
+
+        phi_t = self.phi_inc * self.A \
+                      - (self.g.halfTube * self.view_factor * self.sigma * epsilon \
+                         * (self.meshT[:, -1]**4 - self.T_ext**4)) \
+                      - (h_ext * self.g.halfTube *
+                         (self.meshT[:, -1] - self.T_ext)) \
+                      + self.int_flux * -self.g.cosTheta * (1. - self.g.halfTube)
+
+        self.meshT[:, -1] = self.meshT[:, -2] + \
+                           (phi_t * self.g.dr / self.k)
+
+    def intTubeTemp(self):
         """ fixedValue boundary condition """
         self.meshT[:,0] = self.T_int
 
@@ -1503,4 +1652,5 @@ if __name__ == "__main__":
     # Timoshenko1951()
     # Holms1952()
     # SE6413()
-    ASTRI2()
+    # ASTRI2()
+    pass
